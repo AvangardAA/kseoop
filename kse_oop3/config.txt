@@ -1,0 +1,5 @@
+Electronics laptop 499 acer predator 1000
+Clothing LVtrainer 700 39 black leather
+Books C++ 30 BjarneStraustrup tech dontknow
+Clothing shoes 700 39 black leather_lv_trainer
+Clothing shirt 700 medium black leather_lv_trainer
