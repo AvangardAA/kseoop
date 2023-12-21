@@ -66,6 +66,26 @@ public:
 		return bnds;
 	}
 
+    void serialize(std::ofstream& file) const
+	{
+		file.write(reinterpret_cast<const char*>(&pos), sizeof(sf::Vector2f));
+		file.write(reinterpret_cast<const char*>(&rotat), sizeof(float));
+		file.write(reinterpret_cast<const char*>(&sp), sizeof(float));
+		file.write(reinterpret_cast<const char*>(&size), sizeof(float));
+	}
+
+	void deserialize(std::ifstream& file)
+	{
+		file.read(reinterpret_cast<char*>(&pos), sizeof(sf::Vector2f));
+		file.read(reinterpret_cast<char*>(&rotat), sizeof(float));
+		file.read(reinterpret_cast<char*>(&sp), sizeof(float));
+		file.read(reinterpret_cast<char*>(&size), sizeof(float));
+
+		projectile.setRadius(size);
+		projectile.setOrigin(size, size);
+		projectile.setPosition(pos);
+	}
+
 private:
     sf::Vector2f pos;
     sf::Vector2f vel;
@@ -316,6 +336,27 @@ public:
         return bnds;
     }
 
+    void serialize(std::ofstream& file) const
+	{
+		file.write(reinterpret_cast<const char*>(&pos), sizeof(sf::Vector2f));
+		file.write(reinterpret_cast<const char*>(&rotat), sizeof(float));
+		file.write(reinterpret_cast<const char*>(&speed), sizeof(float));
+		file.write(reinterpret_cast<const char*>(&size), sizeof(float));
+	}
+
+	void deserialize(std::ifstream& file)
+	{
+		file.read(reinterpret_cast<char*>(&pos), sizeof(sf::Vector2f));
+		file.read(reinterpret_cast<char*>(&rotat), sizeof(float));
+		file.read(reinterpret_cast<char*>(&speed), sizeof(float));
+		file.read(reinterpret_cast<char*>(&size), sizeof(float));
+
+		asteroid.setSize(sf::Vector2f(size * 2.f, size * 2.f));
+		asteroid.setOrigin(size, size);
+		asteroid.setPosition(pos);
+		asteroid.setRotation(rotat);
+	}
+
 private:
     sf::Vector2f pos;
     float rotat;
@@ -401,12 +442,27 @@ public:
     	sf::Clock clock;
 		Renderer renderer(window, lives, points);
 
+		char opt;
+		std::cout << "do you want to load the game from file?: (y/n)" << std::endl;
+
+		std::cin >> opt;
+		if (opt == 'y' 	)
+		{
+			loadGame("/home/artem/eclipse-workspace/sfml_kse/config.txt");
+		}
+
 		while (window.isOpen())
 		{
 			dTime = clock.restart();
 			procEvent();
 			update();
 			renderer.render(player, asteroids, projectiles);
+			auto cTime = std::chrono::steady_clock::now();
+			if (cTime - lastSaveTime>= std::chrono::seconds(10))
+			{
+				saveGame("/home/artem/eclipse-workspace/sfml_kse/config.txt");
+				lastSaveTime = cTime;
+			}
 		}
 }
 
@@ -572,6 +628,70 @@ private:
 
 		player.resetPos();
     }
+
+    void saveGame(const std::string& fname)
+	{
+		std::ofstream file(fname, std::ios::binary);
+		if (file.is_open())
+		{
+			int numAsteroids = asteroids.size();
+			file.write(reinterpret_cast<const char*>(&numAsteroids), sizeof(int));
+			for (const auto& asteroid : asteroids)
+			{
+				asteroid.serialize(file);
+			}
+
+			int numProjectiles = projectiles.size();
+			file.write(reinterpret_cast<const char*>(&numProjectiles), sizeof(int));
+			for (const auto& projectile : projectiles)
+			{
+				projectile.serialize(file);
+			}
+
+			file.write(reinterpret_cast<char*>(&lives), sizeof(int));
+			file.write(reinterpret_cast<char*>(&points), sizeof(int));
+			file.close();
+		}
+		else
+		{
+			std::cerr << "save failed" << std::endl;
+		}
+	}
+
+	void loadGame(const std::string& fname)
+	{
+		std::ifstream file(fname, std::ios::binary);
+		if (file.is_open())
+		{
+			int numAsteroids = 0;
+			file.read(reinterpret_cast<char*>(&numAsteroids), sizeof(int));
+			asteroids.clear();
+			for (int i = 0; i < numAsteroids; ++i)
+			{
+				Asteroid asteroid(sf::Vector2f(0.f, 0.f), 0.f, 0.f);
+				asteroid.deserialize(file);
+				asteroids.push_back(asteroid);
+			}
+
+			int numProjectiles = 0;
+			file.read(reinterpret_cast<char*>(&numProjectiles), sizeof(int));
+			projectiles.clear();
+			for (int i = 0; i < numProjectiles; ++i)
+			{
+				Projectile projectile(sf::Vector2f(0.f, 0.f), 0.f, 0.f);
+				projectile.deserialize(file);
+				projectiles.push_back(projectile);
+			}
+
+			file.read(reinterpret_cast<char*>(&lives), sizeof(int));
+			file.read(reinterpret_cast<char*>(&points), sizeof(int));
+			file.close();
+		}
+		else
+		{
+			std::cerr << "load failed" << std::endl;
+		}
+	}
 
     sf::RenderWindow window;
     Player player;
